@@ -1,0 +1,10 @@
+{
+    "env": {
+        "browser": true
+    },
+    "extends": "eslint:recommended",
+    "globals": {
+      "$": true,
+      "d3": true
+    }
+}

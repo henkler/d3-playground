@@ -1,0 +1,31 @@
+.graph svg {
+  margin: 0 auto;
+  display: block;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+}
+
+.bar {
+  fill: orange;
+  transitoin: all 0.3s;
+}
+
+.bar:hover {
+  fill: orangered;
+}
+
+.tooltip {
+  position: absolute;
+  text-align: center;
+  width: 220px;
+  height: 75px;
+  padding: 2px;
+  background: gray;
+  border: 1px solid #aaa;
+  border-radius: 8px;
+  pointer-events: none;
+}
