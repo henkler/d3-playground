@@ -1,0 +1,36 @@
+body {
+  font: 10px sans-serif;
+}
+
+.axis .label {
+  font-size: 2em;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.data-point {
+  cursor: pointer;
+}
+
+.data-point circle {
+  stroke: none;
+  r: 6;
+}
+
+.tooltip {
+  color: green;
+  position: absolute;
+  text-align: center;
+  width: 220px;
+  height: 110px;
+  padding: 2px;
+  background: #ccc;
+  border: 1px solid #aaa;
+  border-radius: 8px;
+  pointer-events: none;
+}
