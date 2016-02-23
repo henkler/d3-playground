@@ -63,7 +63,7 @@ function renderScatterPlot(dataPath) {
     xAxisG.call(xAxis);
     yAxisG.call(yAxis);
 
-    var points = g.selectAll(".cyclist-point").data(data);
+    var points = g.selectAll(".data-point").data(data);
 
     points.enter().append("g")
       .attr("class", "data-point");
