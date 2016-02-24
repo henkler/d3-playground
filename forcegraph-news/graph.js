@@ -11,23 +11,27 @@ var forcemap = function()  {
   var g;
 
   var dataPath;
-  var data;
 
+  var nodes;
+  var nodeAuthorMap;
+  var nodeStoryMap;
+  var links;
+  var linkMap;
+
+  var dataRefreshInterval;
   var timer = null;
 
-  var init = function(path, width, height) {
-    dataPath = path;
-    outerWidth = width;
-    outerHeight = height;
-    margin = {
-      top: 0,
-      right: 0,
-      bottom: 0,
-      left: 0
-    };
+  var init = function(path, containerElementName, width, height, refresh) {
+    nodes = [];
+    nodeAuthorMap = {}
+    nodeStoryMap = {};
+    links = [];
+    linkMap  ={};
 
-    innerWidth = outerWidth - margin.left - margin.right;
-    innerHeight = outerHeight - margin.top - margin.bottom;
+    dataPath = path;
+    dataRefreshInterval = refresh * 1000;
+
+    setupMargins(width, height);
 
     force = d3.layout.force()
       .size([innerWidth, innerHeight])
@@ -36,7 +40,7 @@ var forcemap = function()  {
       .charge(function(node) { return -100 * node.weight; })
       .on("tick", forceTick);
 
-    svg = d3.select("#forcemap").append("svg")
+    svg = d3.select(containerElementName).append("svg")
       .attr("width", innerWidth)
       .attr("height", innerHeight);
 
@@ -48,10 +52,23 @@ var forcemap = function()  {
       .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
   }
 
+  var setupMargins = function(width, height) {
+    outerWidth = width;
+    outerHeight = height;
+    margin = {
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0
+    };
+    innerWidth = outerWidth - margin.left - margin.right;
+    innerHeight = outerHeight - margin.top - margin.bottom;
+  }
+
   var start = function() {
     if (force && !timer) {
       // reload the node list every minute
-      timer = setInterval(function() { renderMapData(); }, 60 * 1000);
+      timer = setInterval(function() { renderMapData(); }, dataRefreshInterval);
       renderMapData();
     }
   }
@@ -60,24 +77,60 @@ var forcemap = function()  {
     if (timer) {
       clearInterval(timer);
       timer = null;
+      force.stop;
     }
+  }
+
+  var resize = function(width, height) {
+    setupMargins(width, height);
+    svg.attr("width", innerWidth)
+      .attr("height", innerHeight);
   }
 
   var renderMapData = function() {
     d3.json(dataPath, function(error, rawdata) {
       if (error) throw error;
 
-      data = transformToNodesAndLinks(rawdata);
+      force.stop();
+      parseData(rawdata);
       render();
     });
   }
 
-  var transformToNodesAndLinks = function(rawdata) {
-    var nodes = [];
-    var nodeAuthorMap = {};
-    var nodeStoryMap = {};
-    var links = [];
-    var linkMap = {};
+  // for live data refrsh.  Mark all data as outdated.
+  var markDataAsOutdated = function() {
+    nodes.forEach(function(node) { node.outdated = true; });
+    links.forEach(function(link) { link.outdated = true; });
+  }
+
+  // for live data refresh.  Remove all outdated data
+  var removeOutdatedData = function() {
+    nodes = nodes.filter(function(node) { return node.outdated === false; });
+    links = links.filter(function(link) { return link.outdated === false; });
+
+    Object.keys(nodeAuthorMap).forEach(function(key) {
+      if (nodeAuthorMap[key].outdated) {
+        delete nodeAuthorMap[key];
+      }
+    });
+
+    Object.keys(nodeStoryMap).forEach(function(key) {
+      if (nodeStoryMap[key].outdated) {
+        delete nodeStoryMap[key];
+      }
+    });
+
+    Object.keys(linkMap).forEach(function(key) {
+      if (linkMap[key].outdated) {
+        delete linkMap[key];
+      }
+    });
+  }
+
+  // parse the raw JSON data into nodes and links
+  var parseData = function(rawdata) {
+    // mark any existing data as potentially outdated (will update below)
+    markDataAsOutdated();
 
     rawdata.forEach(function(story) {
       // create the author as a node
@@ -93,6 +146,7 @@ var forcemap = function()  {
         nodes.push(authorNode);
         nodeAuthorMap[authorNode.key] = authorNode;
       }
+      authorNode.outdated = false;
 
       // create the story as a node
       var storyID = getHostNameFromURL(story.link);
@@ -105,9 +159,10 @@ var forcemap = function()  {
         nodes.push(storyNode);
         nodeStoryMap[storyNode.key] = storyNode;
       }
+      storyNode.outdated = false;
 
       // create an edge between author and story.  If we already have an edge, increment the weight
-      var linkID = authorNode.key + '-' + storyNode.key;
+      var linkID = authorNode.key + '-' + story.link;
       var link = linkMap[linkID];
       if (!link) {
         link = {
@@ -116,18 +171,14 @@ var forcemap = function()  {
           target: storyNode,
           weight: 1
         }
+        links.push(link);
+        linkMap[link.key] = link;
       }
-      else {
-        link.weight++;
-      }
-      links.push(link);
-      linkMap[link.key] = link;
+      link.outdated = false;
     });
 
-    return {
-      nodes: nodes,
-      links: links
-    };
+    // remove any nodes or links that didn't get added or touched
+    removeOutdatedData();
   }
 
   var getHostNameFromURL = function(url) {
@@ -137,9 +188,6 @@ var forcemap = function()  {
   }
 
   var render = function() {
-    var nodes = data.nodes;
-    var links = data.links;
-
     force.nodes(nodes)
       .links(links)
       .start();
@@ -222,15 +270,20 @@ var forcemap = function()  {
     d3.select("#tooltip").style("opacity", 0);
   }
 
+  // revealing module pattern in action!
   return {
     init: init,
     start: start,
-    stop: stop
+    stop: stop,
+    resize: resize
   };
 } ();
 
 $(document).ready(function() {
   var dataPath = "http://www.freecodecamp.com/news/hot";
-  forcemap.init(dataPath, 900, 900);
+  forcemap.init(dataPath, "#forcemap", 900, 900, 60);
   forcemap.start();
+
+  // TODO - dynamically set container width based on screen size;
+  //    handle resize events automatically and call forcemap.resize()
 });
