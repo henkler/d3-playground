@@ -280,7 +280,7 @@ var forcemap = function()  {
 } ();
 
 $(document).ready(function() {
-  var dataPath = "http://www.freecodecamp.com/news/hot";
+  var dataPath = "https://www.freecodecamp.com/news/hot";
   forcemap.init(dataPath, "#forcemap", 900, 900, 60);
   forcemap.start();
 
